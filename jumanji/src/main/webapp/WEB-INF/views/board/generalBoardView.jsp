@@ -100,6 +100,7 @@
 <!-- Modal -->
 
 <script  type="text/javascript" >
+//접속자수 파악을 위한 소켓 발급
 var webSocket;
 function onOpen(event){
 	console.log("열렸습니다 "+event+" ----");
@@ -117,7 +118,6 @@ function onMessage(message){
 
 function onClose(event){
 	console.log("닫혔습니다. ..." +event);
-	
 }
 
 function disConnect(){
@@ -125,12 +125,13 @@ function disConnect(){
 }
 
 function messageToServer(){
-	console.log("messageToServer 읽음");
-	webSocket.send("brdIdx=147");
-	console.log("messageToServer 읽음2");
 }
+
 $(document).ready(function() {
 	
+	
+	//해당 게시판 그룹에 대한 내용 조회
+	searchBoardContent();
 	
 	//소켓 연결
 	function connect(){
@@ -145,15 +146,9 @@ $(document).ready(function() {
 		webSocket.onmessage = onMessage;
 		//접속 끊기면 호출됨
 		webSocket.onclose = onClose;
-		
 	}
 		
-	
-
 	connect();
-	
-	
-
 	
 	let grp_id = "PRD_001";
 	let parent_brd_idx = $("#brd_idx").val();
@@ -195,6 +190,29 @@ $(document).ready(function() {
 	
 
 });
+
+
+
+var searchBoardContent = function(){
+	var params = {};
+	//params.grp_id = "";
+	params.brd_idx = "${boardDetail.brd_idx}";
+	
+	var successFunc = function(data) {
+		
+		//조회 그만하게 하려면 성공 데이터에서 총 카운터를 리턴시켜서 총 카운터가 end_page보다 작거나 같다면 successFunc를 안 읽게 해야 함
+		console.log("데이터 리턴 성공");
+		
+		if(data.rtCount != 0 || data.rtCount != ""){
+			console.log(data);
+			repeatHTML(data);			
+		}
+		
+	};
+	
+	dataSource_transport("","/board/search/boardList", params, successFunc);
+}
+
 
 //수정 버튼
 function modifyBoard(){
@@ -270,7 +288,6 @@ var replyWriteFormSave = function(){
 	}
 	
 	//형식 체크
-	
 	if(!confirm("저장하시겠습니까?")){
 		return;
 	}

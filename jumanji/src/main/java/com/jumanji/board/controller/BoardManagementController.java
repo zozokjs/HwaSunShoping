@@ -1,6 +1,5 @@
 package com.jumanji.board.controller;
 
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -13,7 +12,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -24,18 +22,15 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import javax.websocket.Session;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.lang3.StringUtils;
-import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -45,7 +40,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
-import com.google.gson.JsonObject;
 import com.innc.cmm.util.CommonUtil;
 import com.innc.user.model.UserInfo;
 import com.jumanji.board.model.TBoardAttachFileModel;
@@ -54,10 +48,7 @@ import com.jumanji.board.model.TBoardGoodHistoryModel;
 import com.jumanji.board.service.TBoardAttachFileService;
 import com.jumanji.board.service.TBoardContentService;
 import com.jumanji.board.service.TBoardGoodHistoryService;
-import com.jumanji.board.service.TBoardGroupService;
-import com.jumanji.main.controller.MainController;
 import com.jumanji.member.model.UserSessionModel;
-import com.jumanji.member.service.TMemberInfoService;
 
 import lombok.AllArgsConstructor;
 import lombok.Setter;
@@ -93,15 +84,39 @@ public class BoardManagementController{
 	static List<TBoardAttachFileModel> fileModelList ; 
 	
 	static String uploadRealPath= "";
-	
-	@RequestMapping("/jumanjiBoardList")
-	public String board() {
-		log.info("controller jumanjiBoardList Read");		
-		
-		return "board/jumanjiBoardList";
-	}
-	
 
+	
+	static String pathFolder = "board";
+	static String delim = "_";
+	
+    //linkPage에 해당되는 jsp를 읽음
+    @RequestMapping(value = "/{linkPage}", method={RequestMethod.POST, RequestMethod.GET})
+	public String pageNavigation(@PathVariable String linkPage, Model model, HttpServletRequest request) {
+          
+    	  //likePage로부터 baseSuffix에 해당되는 부분을 공백처리
+          //String viewPage = CommonUtil.replaceString(linkPage, baseSuffix, "");
+          
+
+          //return CommonUtil.getPagePath(pathFolder, viewPage, delim);
+    	switch(linkPage) {
+		case "jumanjiBoardList" :
+	        
+			//이렇게하면 view페이지에 자동 전달됨
+			//게시판 그룹 테이블로부터 정보를 얻음
+			//model.addAttribute("boardGroupList", gson.toJson(tBoardGroupService.selectList(paramMap))); 
+	          
+			break;
+		default : 
+			break;
+    	}
+    	
+    	//board/{linkPage} 형식으로 리턴됨 > linkPage에 해당되는 페이지가 열린다.
+    	log.info(" > "+ CommonUtil.getPagePath(pathFolder, linkPage, delim));
+    	
+    	return  CommonUtil.getPagePath(pathFolder, linkPage, delim);
+	}
+    
+    
 	//1개 게시판 그룹 ID에 해당하는 모든 게시글 목록 조회
 	@RequestMapping(value = "/search/boardList")
 	public @ResponseBody Map<String, Object>  generalBoardList(TBoardContentModel boardContentModel, Model model, @RequestParam Map<String, Object> paramMap, HttpServletRequest request) {
@@ -137,12 +152,7 @@ public class BoardManagementController{
 			grpList.get(idx).setBrd_title(CommonUtil.replaceString(brd_title2, "&0lt;", "<"));
 			String brd_short2 = grpList.get(idx).getBrd_short();
 			grpList.get(idx).setBrd_short((CommonUtil.replaceString(brd_short2, "&0lt;", "<")));			
-			
-			
-			
 		}
-        
-        
         
 		TBoardGoodHistoryModel historyModel = new TBoardGoodHistoryModel();   
 		historyModel.setGrp_id("PRD_001");
@@ -181,10 +191,6 @@ public class BoardManagementController{
 			
 		}
 	
-		
-		
-		
-        
 		rtMap.put("rtData", grpList);
         rtMap.put("rtCount", grpList == null ? 0 : grpList.size());
         
@@ -192,17 +198,20 @@ public class BoardManagementController{
 	}
 
 	
-	//1개 게시판에 해당되는 내용 조회 후 즉시 뿌림
-	@RequestMapping(value = "/search/{brd_idx}/generalBoardView")
-	public String generalBoardView(TBoardContentModel contentModel, @PathVariable Integer brd_idx, Model model, HttpServletRequest httpServletRequest) {
+	//1개 게시판에 해당되는 내용 조회 후 리턴
+	@RequestMapping(value = "/search/boardContent")
+	public @ResponseBody Map<String, Object>  generalBoardView(@RequestParam Map<String, Object> paramMap, Model model, HttpServletRequest httpServletRequest) {
 		log.info("[Controller] generalBoardView Read---------------------------------------------");		
+		Map<String, Object> rtMap = new HashMap<String, Object>();
 		
-		TBoardContentModel contentModel2 =  new TBoardContentModel();
-		contentModel2.setBrd_idx(brd_idx);
-		contentModel2.setGrp_id("PRD_001");
+		//String brd_idx = (String)paramMap.get("brd_idx");
 		
-		TBoardContentModel contentModel3 =  new TBoardContentModel();
-		contentModel3 = service.selectBoardContent(contentModel2);
+		//String parent_brd_idx  =(String)paramMap.get("parent_brd_idx");
+		
+		
+		//이 양식을 쓰려면 xml, mapper, service를 바꿔야 함 
+		//XML 리턴 타입 > MAP, MAPPER, SERVICE릐 매개변수를 MAP으로 
+		TBoardContentModel contentModel = service.selectBoardContent(CommonUtil.convertObjectToMap(paramMap, model));
 		byte[] content_byte = contentModel3.getBrd_content();		
 		String content_string = new String(content_byte);
 		contentModel3.setBrd_contentString(content_string);
@@ -217,7 +226,7 @@ public class BoardManagementController{
 		model.addAttribute("boardDetail", contentModel3);
 		//JSONObject obj = JSONObject.;
 				
-		return "/board/generalBoardView";
+		return null;
 	}
 	
 	//1개 게시판에 해당되는 댓글 내용 조회
